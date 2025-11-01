@@ -10,7 +10,8 @@ USERNAME = os.getenv("username")
 PASSWORD = os.getenv("pass")
 
 CERT = os.getenv("cert")
-print(ROUTER_IP, USERNAME, PASSWORD, CERT)
+
+#print(ROUTER_IP, USERNAME, PASSWORD, CERT)
 
 def get_active_devices_rest():
     #Requires www-ssl service to be running on the router
@@ -39,4 +40,4 @@ def get_active_devices_rest():
 
 if __name__ == "__main__":
     get_active_devices_rest()
-    pass # Commented out to prevent execution without installation
+    pass
