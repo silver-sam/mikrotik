@@ -1,64 +1,54 @@
-# mikrotik
+# MikroTik Active Devices Monitor
 
-A Python script to retrieve connected devices from a MikroTik router using the REST API (reads the ARP table).
+This script connects to a MikroTik router via its REST API to retrieve and display a list of active devices from the ARP table. It filters for devices that are **dynamic** and **enabled**, giving you a real-time view of what's actually connected.
 
 ## Features
 
-- Connects to MikroTik RouterOS via REST API
-- Retrieves and lists active devices (IP, MAC, Interface)
-- Uses environment variables for secure configuration
-
-## Prerequisites
-
-- Python 3.8+
-- MikroTik router with RouterOS v7+ and www-ssl enabled
-- REST API access (username, password)
-- [requests](https://pypi.org/project/requests/) and [python-dotenv](https://pypi.org/project/python-dotenv/)
-
-## Installation
-
-```bash
-git clone https://github.com/silver-sam/mikrotik.git
-cd mikrotik
-pip install -r requirements.txt
-```
+- **Secure**: Uses HTTPS and verifies SSL certificates.
+- **Robust**: Handles boolean values correctly (whether the API returns JSON booleans or strings).
+- **Professional**: Includes logging and a full unit test suite.
+- **Configurable**: Uses `.env` for configuration.
 
 ## Setup
 
-Create a `.env` file in the project root:
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/silver-sam/mikrotik.git
+    cd mikrotik
+    ```
 
-```env
-ip_address=YOUR_ROUTER_IP
-username=YOUR_USERNAME
-pass=YOUR_PASSWORD
-cert=PATH_TO_YOUR_CERT_FILE # or False to skip verification (not recommended)
-```
+2.  **Create a Virtual Environment:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+3.  **Install Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Configuration:**
+    Create a `.env` file in the project root with the following variables:
+    ```ini
+    ROUTER_IP=192.168.88.1
+    ROUTER_USER=admin
+    ROUTER_PASSWORD=your_secure_password
+    ROUTER_CERT_PATH=/path/to/router.crt
+    ```
+    *(Note: Backward compatibility with `ip_address`, `username`, `pass`, etc., is supported but deprecated.)*
 
 ## Usage
 
+Ensure your virtual environment is active:
 ```bash
-python devices.py
+./devices.py
 ```
+*Or manually:* `python devices.py`
 
-Example output:
+## Testing
+
+To run the unit test suite:
+```bash
+python -m unittest discover tests
 ```
-✅ Successfully retrieved data from https://192.168.88.1/rest/ip/arp
-
---- Active Devices (IP ARP Table via REST API) ---
-IP: 192.168.88.10 | MAC: AA:BB:CC:DD:EE:FF | Interface: ether1
-```
-
-## Troubleshooting
-
-- Ensure your router allows REST API access (RouterOS v7+)
-- Make sure the www-ssl service is running
-- If you get SSL errors, set `cert=False` in your `.env` (not secure for production)
-
-## License
-
-MIT
-
-## Acknowledgements
-
-- [MikroTik Documentation](https://help.mikrotik.com/docs/display/ROS/REST+API)
-- [requests library](https://pypi.org/project/requests/)
