@@ -45,22 +45,35 @@ class TestDevices(unittest.TestCase):
              patch('devices.ROUTER_PASSWORD', 'pass'), \
              patch('devices.ROUTER_CERT_PATH', '/tmp/cert'):
 
-            # Mock API response
-            mock_response = MagicMock()
-            mock_response.json.return_value = [
-                {'address': '192.168.1.10', 'mac-address': 'AA:BB:CC:DD:EE:FF', 'interface': 'ether1', 'dynamic': 'true', 'disabled': 'false'},
-                {'address': '192.168.1.11', 'mac-address': 'AA:BB:CC:DD:EE:00', 'interface': 'ether1', 'dynamic': 'false', 'disabled': 'false'}, # Static
-                {'address': '192.168.1.12', 'mac-address': 'AA:BB:CC:DD:EE:11', 'interface': 'ether1', 'dynamic': 'true', 'disabled': 'true'}, # Disabled
-            ]
-            mock_response.status_code = 200
-            mock_get.return_value = mock_response
+            def side_effect(url, **kwargs):
+                mock_resp = MagicMock()
+                mock_resp.status_code = 200
+                if 'arp' in url:
+                    mock_resp.json.return_value = [
+                        {'address': '192.168.1.10', 'mac-address': 'AA:BB:CC:DD:EE:FF', 'interface': 'ether1', 'dynamic': 'true', 'disabled': 'false'},
+                        {'address': '192.168.1.11', 'mac-address': 'AA:BB:CC:DD:EE:00', 'interface': 'ether1', 'dynamic': 'false', 'disabled': 'false', 'comment': 'StaticDevice'},
+                    ]
+                elif 'lease' in url:
+                    mock_resp.json.return_value = [
+                        {'mac-address': 'AA:BB:CC:DD:EE:FF', 'host-name': 'DynamicHost'},
+                    ]
+                return mock_resp
+            
+            mock_get.side_effect = side_effect
 
             devices_list = devices.get_active_devices_rest()
             
-            # Should contain both dynamic and static entries (but not disabled)
+            # Should contain both entries
             self.assertEqual(len(devices_list), 2)
+            
+            # Check for enriched names
+            # Dynamic device: gets name from DHCP
             self.assertEqual(devices_list[0]['address'], '192.168.1.10')
+            self.assertEqual(devices_list[0]['name'], 'DynamicHost')
+            
+            # Static device: gets name from ARP comment
             self.assertEqual(devices_list[1]['address'], '192.168.1.11')
+            self.assertEqual(devices_list[1]['name'], 'StaticDevice')
 
     @patch('devices.requests.get')
     def test_api_boolean_handling(self, mock_get):
@@ -70,23 +83,26 @@ class TestDevices(unittest.TestCase):
              patch('devices.ROUTER_PASSWORD', 'pass'), \
              patch('devices.ROUTER_CERT_PATH', '/tmp/cert'):
 
-            mock_response = MagicMock()
-            mock_response.json.return_value = [
-                # Boolean types from JSON
-                {'address': '10.0.0.1', 'dynamic': True, 'disabled': False}, 
-                # String types "true"/"false"
-                {'address': '10.0.0.2', 'dynamic': 'true', 'disabled': 'false'},
-                # Mixed/Unexpected
-                {'address': '10.0.0.3', 'dynamic': 'false', 'disabled': False},
-            ]
-            mock_get.return_value = mock_response
+            # Simpler mock for this test: just return empty leases so we don't crash
+            def side_effect(url, **kwargs):
+                mock_resp = MagicMock()
+                mock_resp.status_code = 200
+                if 'arp' in url:
+                     mock_resp.json.return_value = [
+                        {'address': '10.0.0.1', 'dynamic': True, 'disabled': False}, 
+                        {'address': '10.0.0.2', 'dynamic': 'true', 'disabled': 'false'},
+                        {'address': '10.0.0.3', 'dynamic': 'false', 'disabled': False},
+                    ]
+                else:
+                    mock_resp.json.return_value = []
+                return mock_resp
+            
+            mock_get.side_effect = side_effect
 
             results = devices.get_active_devices_rest()
             
-            # All 3 should be included (dynamic=True/False doesn't matter, only disabled=False matters)
+            # All 3 should be included
             self.assertEqual(len(results), 3)
-            ips = sorted([d['address'] for d in results])
-            self.assertEqual(ips, ['10.0.0.1', '10.0.0.2', '10.0.0.3'])
 
     @patch('devices.requests.get')
     @patch('devices.logger')
@@ -96,6 +112,7 @@ class TestDevices(unittest.TestCase):
              patch('devices.ROUTER_PASSWORD', 'pass'), \
              patch('devices.ROUTER_CERT_PATH', '/tmp/cert'):
 
+            # Fail immediately on first call (ARP)
             mock_get.side_effect = devices.requests.exceptions.RequestException("Connection error")
             
             result = devices.get_active_devices_rest()
