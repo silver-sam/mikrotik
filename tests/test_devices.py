@@ -57,9 +57,10 @@ class TestDevices(unittest.TestCase):
 
             devices_list = devices.get_active_devices_rest()
             
-            # Should only contain the first entry (dynamic=true, disabled=false)
-            self.assertEqual(len(devices_list), 1)
+            # Should contain both dynamic and static entries (but not disabled)
+            self.assertEqual(len(devices_list), 2)
             self.assertEqual(devices_list[0]['address'], '192.168.1.10')
+            self.assertEqual(devices_list[1]['address'], '192.168.1.11')
 
     @patch('devices.requests.get')
     def test_api_boolean_handling(self, mock_get):
@@ -82,10 +83,10 @@ class TestDevices(unittest.TestCase):
 
             results = devices.get_active_devices_rest()
             
-            # Both 10.0.0.1 and 10.0.0.2 should be included
-            self.assertEqual(len(results), 2)
+            # All 3 should be included (dynamic=True/False doesn't matter, only disabled=False matters)
+            self.assertEqual(len(results), 3)
             ips = sorted([d['address'] for d in results])
-            self.assertEqual(ips, ['10.0.0.1', '10.0.0.2'])
+            self.assertEqual(ips, ['10.0.0.1', '10.0.0.2', '10.0.0.3'])
 
     @patch('devices.requests.get')
     @patch('devices.logger')

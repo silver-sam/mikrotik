@@ -49,10 +49,9 @@ def get_active_devices_rest() -> List[Dict[str, Any]]:
 
         for entry in arp_entries:
             # Handle both string 'true' and boolean True
-            is_dynamic = str(entry.get('dynamic', 'false')).lower() == 'true'
             is_disabled = str(entry.get('disabled', 'false')).lower() == 'true'
             
-            if is_dynamic and not is_disabled:
+            if not is_disabled:
                 active_devices.append(entry)
         
         return active_devices
