@@ -40,11 +40,17 @@ This script connects to a MikroTik router via its REST API to retrieve and displ
 
 ## Usage
 
-Ensure your virtual environment is active:
+The easiest way to run the script is using the wrapper, which automatically handles the virtual environment:
+
 ```bash
+./run.sh
+```
+
+Alternatively, if you prefer manual execution:
+```bash
+source venv/bin/activate
 ./devices.py
 ```
-*Or manually:* `python devices.py`
 
 ## Testing
 
