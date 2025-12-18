@@ -31,11 +31,11 @@ This script connects to a MikroTik router via its REST API to retrieve and displ
 4.  **Configuration:**
     Create a `.env` file in the project root with the following variables:
     ```ini
-    ROUTER_IP=192.168.88.1
-    ROUTER_USER=admin
+    ROUTER_IP=192.168.88.1 or your own if not default
+    ROUTER_USER=your_user
     ROUTER_PASSWORD=your_secure_password
     ```
-    *(Note: Backward compatibility with `ip_address`, `username`, `pass`, etc., is supported but deprecated.)*
+    
 
 ## Usage
 
@@ -67,17 +67,17 @@ To run this script continuously in the background and have it start automaticall
     After=network.target graphical-session.target
 
     [Service]
-    ExecStart=/home/silver/Desktop/mikrotik/run.sh
-    WorkingDirectory=/home/silver/Desktop/mikrotik
+    ExecStart=/path/to your/mikrotik/run.sh
+    WorkingDirectory=/path/to your/mikrotik
     Restart=always
     RestartSec=10
     Environment=DISPLAY=:0
-    Environment=XAUTHORITY=/home/silver/.Xauthority
+    Environment=XAUTHORITY=/home/{user}/.Xauthority
 
     [Install]
     WantedBy=default.target
     ```
-    *Note: Replace `/home/silver/Desktop/mikrotik` with the actual path to your project directory if it differs.*
+    *Note: Replace `/path/to your/mikrotik` with the actual path to your project directory if it differs.*
 
 2.  **Reload systemd, enable, and start the service:**
     ```bash
