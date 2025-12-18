@@ -4,7 +4,7 @@ This script connects to a MikroTik router via its REST API to retrieve and displ
 
 ## Features
 
-- **Secure**: Uses HTTPS and verifies SSL certificates.
+- **Security Alerts**: Monitors MikroTik system logs for critical events and login failures, sending desktop notifications.
 - **Robust**: Handles boolean values correctly (whether the API returns JSON booleans or strings).
 - **Professional**: Includes logging and a full unit test suite.
 - **Configurable**: Uses `.env` for configuration.
@@ -34,7 +34,6 @@ This script connects to a MikroTik router via its REST API to retrieve and displ
     ROUTER_IP=192.168.88.1
     ROUTER_USER=admin
     ROUTER_PASSWORD=your_secure_password
-    ROUTER_CERT_PATH=/path/to/router.crt
     ```
     *(Note: Backward compatibility with `ip_address`, `username`, `pass`, etc., is supported but deprecated.)*
 
@@ -51,6 +50,46 @@ Alternatively, if you prefer manual execution:
 source venv/bin/activate
 ./devices.py
 ```
+
+## Running as a Systemd User Service
+
+To run this script continuously in the background and have it start automatically on login (or boot, if user lingering is enabled), you can set it up as a systemd user service.
+
+1.  **Create the service file:**
+    ```bash
+    mkdir -p ~/.config/systemd/user/
+    ```
+    Then, create a file named `mikrotik-monitor.service` inside `~/.config/systemd/user/` with the following content:
+
+    ```ini
+    [Unit]
+    Description=MikroTik Device Monitor
+    After=network.target graphical-session.target
+
+    [Service]
+    ExecStart=/home/silver/Desktop/mikrotik/run.sh
+    WorkingDirectory=/home/silver/Desktop/mikrotik
+    Restart=always
+    RestartSec=10
+    Environment=DISPLAY=:0
+    Environment=XAUTHORITY=/home/silver/.Xauthority
+
+    [Install]
+    WantedBy=default.target
+    ```
+    *Note: Replace `/home/silver/Desktop/mikrotik` with the actual path to your project directory if it differs.*
+
+2.  **Reload systemd, enable, and start the service:**
+    ```bash
+    systemctl --user daemon-reload
+    systemctl --user enable --now mikrotik-monitor.service
+    ```
+
+3.  **Check the service status and logs:**
+    ```bash
+    systemctl --user status mikrotik-monitor.service
+    journalctl --user -u mikrotik-monitor.service -f
+    ```
 
 ## Testing
 

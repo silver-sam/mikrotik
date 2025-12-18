@@ -1,0 +1,1 @@
+Why we killed it: The "Secret Code" requires math. Your router's CPU is small. Doing that math every 10 seconds was going to make your router lag. By dropping the certificate and using HTTP, we made the script "free" to run in terms of performance.
