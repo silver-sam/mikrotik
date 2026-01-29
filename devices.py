@@ -107,10 +107,10 @@ def main():
 
     # State Tracking
     known_macs = set()
-    last_log_id = None # To track which logs we have already seen
+    last_log_id = None 
     first_run = True
 
-    # Initialize last_log_id with the current latest log so we don't spam old ones
+    # Initialize last_log_id
     initial_logs = client.get_system_logs()
     if initial_logs:
         last_log_id = initial_logs[-1].get('.id')
@@ -120,73 +120,83 @@ def main():
             # --- 1. LURKER CHECK ---
             arp_devices = client.get_active_devices()
             hotspot_active = client.get_hotspot_active()
-            current_scan_macs = set()
+            
+            # We no longer wipe 'known_macs' every loop. We accumulate.
 
             for device in arp_devices:
                 mac = device.get('mac-address')
                 ip = device.get('address', '')
                 name = device.get('name')
-                current_scan_macs.add(mac)
 
-                if mac not in known_macs and not first_run:
-                    # Ignore trusted LAN
-                    if ip.startswith("192.168.10."):
-                        status = "Trusted LAN"
-                        urgency = "low"
-                    # Check WiFi
-                    elif ip.startswith("192.168.20."):
-                        if mac in hotspot_active:
-                            status = "✅ Authenticated User"
-                            urgency = "normal"
-                        else:
-                            status = "⚠️ LURKER (Not Logged In)"
-                            urgency = "critical"
+                # If we have seen this MAC before in this session, skip it completely
+                if mac in known_macs:
+                    continue
+
+                # --- NEW DEVICE PROCESSING ---
+                urgency = "low" # Default
+                should_alert = True
+
+                # Filter 1: Trusted LAN (Wired)
+                if ip.startswith("192.168.10."):
+                    status = "Trusted LAN"
+                    should_alert = False # Don't annoy me with wired devices
+                
+                # Filter 2: Upstream WAN (Huawei) - THE FIX FOR 192.168.100.1
+                elif ip.startswith("192.168.100."):
+                    status = "Upstream Gateway"
+                    should_alert = False # Ignore the ISP router
+                
+                # Filter 3: Hotspot WiFi
+                elif ip.startswith("192.168.20."):
+                    if mac in hotspot_active:
+                        status = "✅ Authenticated User"
+                        urgency = "normal"
                     else:
-                        status = "❓ Unknown Network"
+                        status = "⚠️ LURKER (Not Logged In)"
                         urgency = "critical"
-
-                    if urgency != "low":
-                        logger.info(f"New Device: {name} - {status}")
-                        send_notification("New Device Detected", f"{name}\n{ip}\n{status}", urgency)
-
-            known_macs = current_scan_macs
-
-            # --- 2. LOG WATCHER (New Feature) ---
-            logs = client.get_system_logs()
-            
-            # If we have logs and we have seen logs before
-            if logs and last_log_id:
-                # Find where the new logs start
-                new_logs = []
-                found_last = False
                 
-                # Iterate through logs to find everything AFTER our last seen ID
-                # (This handles the case where RouterOS appends new items)
-                for log in logs:
-                    if found_last:
-                        new_logs.append(log)
-                    elif log.get('.id') == last_log_id:
-                        found_last = True
-                
-                # Process the new entries
-                for log in new_logs:
-                    topics = log.get('topics', '')
-                    message = log.get('message', '')
-                    
-                    # TRIGGER CONDITIONS
-                    is_critical = "critical" in topics or "error" in topics
-                    is_login_fail = "login failure" in message
-                    
-                    if is_critical or is_login_fail:
-                        logger.warning(f"SECURITY ALERT: {message}")
-                        send_notification("🚨 SECURITY ALERT", f"{message}", "critical")
-                    
-                    # Update our memory
-                    last_log_id = log.get('.id')
+                # Filter 4: Unknown Subnets
+                else:
+                    status = "❓ Unknown Network"
+                    urgency = "critical"
 
-            # Update ID if we fell behind or first run
-            elif logs:
-                last_log_id = logs[-1].get('.id')
+                # Add to memory so we don't alert again
+                known_macs.add(mac)
+
+                # Only alert if it's not first run (boot up) and not ignored
+                if not first_run and should_alert:
+                    logger.info(f"New Device: {name} - {status}")
+                    send_notification("New Device Detected", f"{name}\n{ip}\n{status}", urgency)
+
+
+            # --- 2. LOG WATCHER ---
+            try:
+                logs = client.get_system_logs()
+                if logs and last_log_id:
+                    new_logs = []
+                    found_last = False
+                    for log in logs:
+                        if found_last:
+                            new_logs.append(log)
+                        elif log.get('.id') == last_log_id:
+                            found_last = True
+                    
+                    for log in new_logs:
+                        topics = log.get('topics', '')
+                        message = log.get('message', '')
+                        
+                        is_critical = "critical" in topics or "error" in topics
+                        is_login_fail = "login failure" in message
+                        
+                        if is_critical or is_login_fail:
+                            logger.warning(f"SECURITY ALERT: {message}")
+                            send_notification("🚨 SECURITY ALERT", f"{message}", "critical")
+                        
+                        last_log_id = log.get('.id')
+                elif logs:
+                    last_log_id = logs[-1].get('.id')
+            except Exception as e:
+                logger.error(f"Log Watcher Error: {e}")
 
             first_run = False
             time.sleep(10)
